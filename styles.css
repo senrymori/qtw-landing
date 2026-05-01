@@ -269,8 +269,8 @@
 
   @media (max-width: 920px) {
     .hero-grid { grid-template-columns: 1fr; }
-    .hero-phone-stage { height: 540px; margin-top: 20px; }
-    .phone-frame { transform: rotate(-2deg) scale(0.9); }
+    .hero-phone-stage { height: 540px;  }
+    .phone-frame { --phone-scale: 0.8; }
     .phone-floating { right: 10px; }
     .phone-floating-2 { left: 10px; }
   }
@@ -391,7 +391,7 @@
   }
   .pos-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 80px; align-items: center; position: relative; z-index: 1; }
   .pos-features { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin-top: 32px; }
-  .pos-feature { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink); }
+  .pos-feature { display: flex; align-items: center; gap: 10px; font-size: 18px; color: var(--ink); }
   .pos-feature .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
   .pos-mock {
     position: relative;
@@ -497,7 +497,10 @@
 
   @media (max-width: 880px) {
     .feat-block { grid-template-columns: 1fr; gap: 40px; }
-    .feat-block.reverse > :first-child { order: 0; }
+    .feat-block.reverse > :first-child { order: 2; }
+    .feat-block .visual.branded .img-wrap {
+      max-width: 70%;
+    }
   }
 
   /* ---------- 3-COL EXPERIENCE ---------- */
@@ -588,32 +591,33 @@
     padding: 64px 40px;
     position: relative;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
   }
   .price-card.feat {
     border-top: 2px solid var(--blue);
     border-bottom: 2px solid var(--blue);
     box-shadow: none;
   }
-  .price-card .pop { left: 50%; transform: translateX(-50%); }
-  .price-feats-wrap { display: flex; justify-content: center; }
-  .price-feats { justify-items: start; }
-  .price-feat { justify-content: flex-start; }
   .price-card .pop {
-    position: absolute; top: -14px; left: 40px;
+    position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
     background: var(--blue); color: #fff;
     padding: 6px 14px; border-radius: 999px;
     font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   }
-  .price-card .name { font-family: "Geist", sans-serif; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
-  .price-card .head { font-family: "Geist", sans-serif; font-weight: 700; font-size: 36px; letter-spacing: -0.03em; margin-bottom: 6px; }
+  .price-card .name { font-family: "Geist", sans-serif; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .price-card .head { font-family: "Geist", sans-serif; font-weight: 700; font-size: 36px; letter-spacing: -0.03em; line-height: 1.15; }
   .price-card .head .accent { color: var(--blue); }
+  .price-card .head .unit { font-size: 18px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
   .price-card .small { font-size: 13px; color: var(--muted); }
-  .price-card hr { border: 0; border-top: 1px solid var(--line); margin: 24px 0; }
-  .price-card .feat-title { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 14px; }
-  .price-feats { display: grid; gap: 10px; margin-bottom: 28px; }
-  .price-feat { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); }
+  .price-card hr { border: 0; border-top: 1px solid var(--line); margin: 0; width: 100%; }
+  .price-card .feat-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .price-feats-wrap { display: flex; justify-content: center; }
+  .price-feats { display: grid; gap: 10px; justify-items: start; }
+  .price-feat { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); justify-content: flex-start; }
   .price-feat .ck { width: 18px; height: 18px; border-radius: 50%; background: var(--blue); display: grid; place-items: center; flex: 0 0 18px; }
-  .price-cta { display: inline-flex; }
+  .price-cta { display: inline-flex; align-self: center; }
 
   .modules { margin-top: 24px; display: grid; gap: 12px; }
   .module-row {
@@ -634,12 +638,13 @@
   @media (max-width: 880px) {
     .pricing-grid { grid-template-columns: 1fr; }
     .pricing-grid > .price-card { max-width: 620px; }
-    .price-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 40px; text-align: left; }
+    .price-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 40px 24px; text-align: left; gap: 12px; }
     .price-card.feat { border: 2px solid var(--blue); box-shadow: var(--shadow-md); }
-    .price-card .pop { left: 40px; transform: none; }
-    .price-cta { display: flex; width: 100%; justify-content: center; }
-    .price-feats { justify-items: stretch; }
-    .price-feat { justify-content: flex-start; }
+    .price-card .pop { left: 24px; transform: none; }
+    .price-card .head { font-size: 28px; }
+    .price-card .head .unit { font-size: 15px; }
+    .price-cta { width: 100%; align-self: stretch; justify-content: center; }
+    .price-feats-wrap { justify-content: flex-start; }
   }
 
   /* ---------- HARDWARE ---------- */

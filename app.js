@@ -22,7 +22,10 @@ const onScroll = () => {
       const elements = phone.querySelectorAll("[data-parallax]");
       elements.forEach(el => {
         const speed = parseFloat(el.dataset.parallax);
-        el.style.transform = `translateY(${window.scrollY * speed}px) ${el.classList.contains('phone-frame') ? 'rotate(-3deg)' : el.classList.contains('phone-floating') ? 'rotate(4deg)' : el.classList.contains('phone-floating-2') ? 'rotate(-5deg)' : ''}`;
+        const isPhoneFrame = el.classList.contains('phone-frame');
+        const rot = isPhoneFrame ? 'rotate(-3deg)' : el.classList.contains('phone-floating') ? 'rotate(4deg)' : el.classList.contains('phone-floating-2') ? 'rotate(-5deg)' : '';
+        const scale = isPhoneFrame ? 'scale(var(--phone-scale, 1))' : '';
+        el.style.transform = `translateY(${window.scrollY * speed}px) ${rot} ${scale}`;
       });
     }
   }
