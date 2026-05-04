@@ -499,7 +499,8 @@
     .feat-block { grid-template-columns: 1fr; gap: 40px; }
     .feat-block.reverse > :first-child { order: 2; }
     .feat-block .visual.branded .img-wrap {
-      max-width: 70%;
+      max-width: 80%;
+      margin: auto;
     }
   }
 
