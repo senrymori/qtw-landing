@@ -214,38 +214,23 @@ cuisineInput.addEventListener('keydown', e => {
 // ---------- Language ----------
 const languageSelect = document.getElementById('dfLanguage');
 
-function populateLanguages(allowed) {
-  const codes = (allowed && allowed.length) ? allowed.filter(c => ALL_LOCALES.includes(c)) : ALL_LOCALES;
-  const prev = languageSelect.value;
+function populateLanguages() {
   languageSelect.innerHTML = '';
-  if (!codes.length) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.disabled = true;
-    opt.selected = true;
-    opt.textContent = 'No languages available';
-    languageSelect.appendChild(opt);
-    return;
-  }
   const placeholder = document.createElement('option');
   placeholder.value = '';
   placeholder.disabled = true;
+  placeholder.selected = true;
   placeholder.textContent = 'Select a language…';
   languageSelect.appendChild(placeholder);
-  codes.forEach(code => {
+  ALL_LOCALES.forEach(code => {
     const opt = document.createElement('option');
     opt.value = code;
     opt.textContent = `${LOCALE_NAMES[code] || code} (${code.toUpperCase()})`;
     languageSelect.appendChild(opt);
   });
-  if (prev && codes.includes(prev)) {
-    languageSelect.value = prev;
-  } else {
-    placeholder.selected = true;
-  }
 }
 
-populateLanguages(null);
+populateLanguages();
 
 // ---------- Countries ----------
 const countrySelect = document.getElementById('dfCountry');
@@ -279,20 +264,6 @@ fetch(`${API_BASE_URL}/api/v3/countries?locale=en`)
 
 countrySelect.addEventListener('change', e => {
   const opt = e.target.selectedOptions[0];
-  const country = countriesById.get(String(opt.value));
-
-  // Restrict language options to those supported by the country
-  if (country && Array.isArray(country.locales)) {
-    const prevLocale = languageSelect.value;
-    populateLanguages(country.locales);
-    // Only fall back to the country's main_locale if the user hadn't
-    // already picked a language that the new country still supports.
-    if (!prevLocale || !country.locales.includes(prevLocale)) {
-      if (country.main_locale && country.locales.includes(country.main_locale)) {
-        languageSelect.value = country.main_locale;
-      }
-    }
-  }
 
   // Prefill phone code
   const rawCode = opt && opt.dataset.phoneCode;
