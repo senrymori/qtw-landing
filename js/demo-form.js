@@ -196,6 +196,27 @@ populateLanguages();
 const countrySelect = document.getElementById('dfCountry');
 const phoneInput = document.getElementById('dfPhone');
 const countriesById = new Map();
+let selectedCountryLocale = null;
+
+function countryLocaleFor(country) {
+  if (!country) return null;
+  const candidates = [
+    country.locale,
+    country.default_locale,
+    country.main_locale,
+    country.language,
+    country.language_code,
+    country.lang
+  ];
+  for (const c of candidates) {
+    if (!c) continue;
+    const v = String(c).toLowerCase();
+    if (ALL_LOCALES.includes(v)) return v;
+  }
+  const abbrLower = String(country.abbr || '').toLowerCase();
+  if (ALL_LOCALES.includes(abbrLower)) return abbrLower;
+  return null;
+}
 
 fetch(`${API_BASE_URL}/api/v3/countries?locale=en`)
   .then(r => {
@@ -236,6 +257,10 @@ countrySelect.addEventListener('change', e => {
     }
     phoneInput.placeholder = code + ' ';
   }
+
+  // Track country's primary locale for multi-locale payloads
+  const country = countriesById.get(String(e.target.value));
+  selectedCountryLocale = countryLocaleFor(country);
 });
 
 // ---------- Phone: normalize to single leading "+" ----------
@@ -283,6 +308,87 @@ pwToggle.addEventListener('click', () => {
   pwIcon.setAttribute('href', isHidden ? '#i-eye-off' : '#i-eye');
 });
 
+// ---------- Menu file upload ----------
+const MAX_MENU_FILE_SIZE = 10 * 1024 * 1024;
+const ALLOWED_MENU_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']);
+const ALLOWED_MENU_EXT = /\.(jpe?g|png|pdf)$/i;
+
+const menuFileInput = document.getElementById('dfMenuFile');
+const uploadZone = document.getElementById('dfUpload');
+const uploadEmptyView = uploadZone.querySelector('.df-upload-empty');
+const uploadFileView = uploadZone.querySelector('.df-upload-file');
+const uploadFileName = uploadFileView.querySelector('.name');
+const uploadFileSize = uploadFileView.querySelector('.size');
+const uploadRemoveBtn = uploadFileView.querySelector('.remove');
+const uploadErr = document.getElementById('dfUploadErr');
+
+let selectedMenuFile = null;
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function validateMenuFile(file) {
+  const okMime = ALLOWED_MENU_MIME.has(file.type);
+  const okExt = ALLOWED_MENU_EXT.test(file.name);
+  if (!okMime && !okExt) return 'Unsupported file type. Use JPG, PNG or PDF.';
+  if (file.size > MAX_MENU_FILE_SIZE) return 'File is larger than 10 MB.';
+  return null;
+}
+
+function setMenuFile(file) {
+  uploadErr.textContent = '';
+  if (!file) {
+    selectedMenuFile = null;
+    uploadEmptyView.hidden = false;
+    uploadFileView.hidden = true;
+    menuFileInput.value = '';
+    return;
+  }
+  const err = validateMenuFile(file);
+  if (err) {
+    uploadErr.textContent = err;
+    selectedMenuFile = null;
+    uploadEmptyView.hidden = false;
+    uploadFileView.hidden = true;
+    menuFileInput.value = '';
+    return;
+  }
+  selectedMenuFile = file;
+  uploadFileName.textContent = file.name;
+  uploadFileSize.textContent = formatBytes(file.size);
+  uploadEmptyView.hidden = true;
+  uploadFileView.hidden = false;
+}
+
+uploadEmptyView.addEventListener('click', () => menuFileInput.click());
+menuFileInput.addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  if (f) setMenuFile(f);
+});
+uploadRemoveBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  setMenuFile(null);
+});
+
+['dragenter', 'dragover'].forEach(ev => {
+  uploadZone.addEventListener(ev, e => {
+    e.preventDefault();
+    uploadZone.classList.add('dragging');
+  });
+});
+['dragleave', 'dragend'].forEach(ev => {
+  uploadZone.addEventListener(ev, () => uploadZone.classList.remove('dragging'));
+});
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragging');
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) setMenuFile(f);
+});
+
 // ---------- Submission flow ----------
 const form = document.getElementById('dfForm');
 const submitBtn = document.getElementById('dfSubmitBtn');
@@ -327,12 +433,20 @@ function collectFormData() {
     name: nameInput.value.trim(),
     cuisine: cuisineInput.value.trim(),
     countryId: countrySelect.value,
+    countryLocale: selectedCountryLocale,
     address: document.getElementById('dfAddress').value.trim(),
     locale: languageSelect.value,
     phone: phoneForApi(phoneInput.value),
     email: document.getElementById('dfEmail').value.trim(),
     password: document.getElementById('dfPassword').value
   };
+}
+
+function buildTargetLocales(data) {
+  const set = new Set();
+  if (data.locale) set.add(data.locale);
+  if (data.countryLocale) set.add(data.countryLocale);
+  return Array.from(set);
 }
 
 function validateForm(data) {
@@ -451,6 +565,10 @@ codeForm.addEventListener('submit', async e => {
 function showStatus() {
   layoutEl.remove();
   document.querySelector('.df-head').remove();
+  if (!selectedMenuFile) {
+    const menuStep = statusEl.querySelector('[data-step="menu"]');
+    if (menuStep) menuStep.remove();
+  }
   statusEl.hidden = false;
 }
 
@@ -555,7 +673,21 @@ async function finalizeSite({ authToken, restaurantPointId, data }) {
   } catch (_) { /* tolerate */ }
   setStepDone('theme');
 
-  // 4. Fetch slug
+  // 4. Menu parsing + save (only if user uploaded a file)
+  if (selectedMenuFile) {
+    setStepActive('menu');
+    try {
+      const targetLocales = buildTargetLocales(data);
+      const parsed = await parseMenu(authToken, targetLocales, selectedMenuFile);
+      if (parsed && Array.isArray(parsed.categories) && parsed.categories.length) {
+        const subdivisions = await fetchSubdivisions(authToken, restaurantPointId, locale);
+        await saveMenuToBackend(parsed, authToken, restaurantPointId, locale, targetLocales, subdivisions);
+      }
+    } catch (_) { /* tolerate */ }
+    setStepDone('menu');
+  }
+
+  // 5. Fetch slug
   setStepActive('finalize');
   let slug = slugify(data.name);
   try {
@@ -587,6 +719,205 @@ async function uploadThemeImage(themeUrl, authToken, fieldName, assetPath) {
     headers: { 'Authorization': `Bearer ${authToken}` },
     body: fd
   });
+}
+
+// ---------- Menu parsing (AI) + save ----------
+const MENU_POLL_INTERVAL_MS = 7000;
+const MENU_POLL_MAX_ATTEMPTS = 60;
+
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+async function parseMenu(authToken, locales, file) {
+  const fd = new FormData();
+  fd.append('file', file, file.name);
+  const localeList = Array.isArray(locales) ? locales : [locales];
+  for (const loc of localeList) {
+    if (loc) fd.append('locales[]', loc);
+  }
+
+  const startRes = await fetch(`${API_BASE_URL}/api/v1/admin/ai_functions/parser`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${authToken}` },
+    body: fd
+  });
+  if (!startRes.ok) throw new Error(`Failed to start parsing (HTTP ${startRes.status})`);
+  const startJson = await startRes.json();
+  const key = startJson && startJson.key;
+  if (!key) throw new Error('Parser key missing in response');
+
+  const resultUrl = `${API_BASE_URL}/api/v1/admin/ai_functions/parser/results/${encodeURIComponent(key)}`;
+  for (let attempt = 0; attempt < MENU_POLL_MAX_ATTEMPTS; attempt++) {
+    await sleep(MENU_POLL_INTERVAL_MS);
+    const r = await fetch(resultUrl, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (r.status === 202) continue;
+    if (!r.ok) throw new Error(`Parser poll failed (HTTP ${r.status})`);
+    const json = await r.json();
+    if (json && json.status === 'pending') continue;
+    if (json && json.status === 'error') throw new Error('Parser returned error');
+    // Result may be wrapped in { result: { categories } } or returned directly as { categories }.
+    const result = (json && json.result) ? json.result : json;
+    if (result && Array.isArray(result.categories)) return result;
+    return { categories: [] };
+  }
+  throw new Error('Parser timed out');
+}
+
+async function fetchSubdivisions(authToken, restaurantPointId, locale) {
+  const url = `${API_BASE_URL}/api/v1/admin/subdivisions?restaurant_point_id=${restaurantPointId}&locale=${encodeURIComponent(locale)}`;
+  const res = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${authToken}` }
+  });
+  if (!res.ok) return [];
+  const json = await res.json();
+  if (Array.isArray(json)) return json;
+  return json.data || json.subdivisions || [];
+}
+
+function formatTextForServer(translations, targetLocales, mainLocale) {
+  if (!translations) return undefined;
+
+  // Pick a non-empty fallback value (prefer main locale, then any non-empty entry).
+  let fallback = '';
+  if (mainLocale && translations[mainLocale]) {
+    fallback = translations[mainLocale];
+  }
+  if (!fallback) {
+    for (const k in translations) {
+      if (translations[k]) { fallback = translations[k]; break; }
+    }
+  }
+
+  const out = {};
+  for (const k in translations) {
+    out[k] = { type: 'manual', value: translations[k] || fallback };
+  }
+  // Ensure each required locale has a non-blank value — backend rejects blanks
+  // when the restaurant point's country locale ≠ main_locale.
+  for (const tl of (targetLocales || [])) {
+    if (!tl) continue;
+    if (!out[tl] || !out[tl].value) {
+      out[tl] = { type: 'manual', value: fallback };
+    }
+  }
+  return out;
+}
+
+function getSubdivisionId(type, subdivisions) {
+  if (!subdivisions || !subdivisions.length) return undefined;
+  return type === 'bar' ? (subdivisions[0] && subdivisions[0].id) : (subdivisions[1] && subdivisions[1].id);
+}
+
+async function apiCreateCategory(authToken, restaurantPointId, locale, body) {
+  const url = `${API_BASE_URL}/api/v1/admin/categories?restaurant_point_id=${restaurantPointId}&locale=${encodeURIComponent(locale)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(`Create category failed (HTTP ${res.status})`);
+  return res.json();
+}
+
+async function apiAddSubdivisionToCategory(authToken, categoryId, subdivisionId) {
+  await fetch(`${API_BASE_URL}/api/v1/admin/categories/${categoryId}/add_subdivision/${subdivisionId}`, {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${authToken}` }
+  }).catch(() => { /* tolerate */ });
+}
+
+async function apiCreateDish(authToken, restaurantPointId, locale, body) {
+  const url = `${API_BASE_URL}/api/v1/admin/products?restaurant_point_id=${restaurantPointId}&locale=${encodeURIComponent(locale)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(`Create dish failed (HTTP ${res.status})`);
+  return res.json();
+}
+
+function buildDishBody(categoryId, dish, targetLocales, mainLocale) {
+  return {
+    name: formatTextForServer(dish.name, targetLocales, mainLocale),
+    description: formatTextForServer(dish.description, targetLocales, mainLocale),
+    discount_value: null,
+    discount_type: 'unset',
+    category_id: categoryId,
+    kkal: dish.kkal != null ? String(dish.kkal) : null,
+    carbs: dish.carbs,
+    proteins: dish.proteins,
+    fats: dish.fats,
+    weight: dish.weight != null ? String(dish.weight) : '0',
+    price: dish.price != null ? String(dish.price) : '0',
+    weight_type: dish.unit || 'gram'
+  };
+}
+
+async function saveMenuToBackend(parsed, authToken, restaurantPointId, mainLocale, targetLocales, subdivisions) {
+  await Promise.all((parsed.categories || []).map(async category => {
+    let parentCategory;
+    try {
+      parentCategory = await apiCreateCategory(authToken, restaurantPointId, mainLocale, {
+        name: formatTextForServer(category.name, targetLocales, mainLocale),
+        is_menu: !!(category.subcategories && category.subcategories.length),
+        is_limited: false,
+        is_bonus: false
+      });
+    } catch (_) {
+      return;
+    }
+
+    const divisionId = getSubdivisionId(category.type, subdivisions);
+    const tasks = [];
+
+    if (divisionId !== undefined) {
+      tasks.push(apiAddSubdivisionToCategory(authToken, parentCategory.id, divisionId));
+    }
+
+    if (category.subcategories && category.subcategories.length) {
+      tasks.push(...category.subcategories.map(async sub => {
+        let subResp;
+        try {
+          subResp = await apiCreateCategory(authToken, restaurantPointId, mainLocale, {
+            name: formatTextForServer(sub.name, targetLocales, mainLocale),
+            is_menu: false,
+            is_limited: false,
+            is_bonus: false,
+            parent_id: parentCategory.id
+          });
+        } catch (_) {
+          return;
+        }
+
+        const subTasks = [];
+        if (divisionId !== undefined) {
+          subTasks.push(apiAddSubdivisionToCategory(authToken, subResp.id, divisionId));
+        }
+        subTasks.push(...(sub.dishes || []).map(dish =>
+          apiCreateDish(authToken, restaurantPointId, mainLocale, buildDishBody(subResp.id, dish, targetLocales, mainLocale))
+            .catch(() => { /* tolerate */ })
+        ));
+        await Promise.all(subTasks);
+      }));
+    } else if (category.dishes && category.dishes.length) {
+      tasks.push(...category.dishes.map(dish =>
+        apiCreateDish(authToken, restaurantPointId, mainLocale, buildDishBody(parentCategory.id, dish, targetLocales, mainLocale))
+          .catch(() => { /* tolerate */ })
+      ));
+    }
+
+    await Promise.all(tasks);
+  }));
 }
 
 function notifyTelegram({ phone, email, slug }) {
