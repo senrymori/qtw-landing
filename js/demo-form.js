@@ -171,46 +171,6 @@ cuisineInput.addEventListener('input', e => {
   previewCuisine.textContent = v ? '— ' + v : '— select a cuisine';
 });
 
-// ---------- Combobox ----------
-const combo = document.getElementById('dfCuisineCombo');
-const comboToggle = combo.querySelector('.df-combo-toggle');
-const comboList = combo.querySelector('.df-combo-list');
-
-function closeCombo() {
-  combo.classList.remove('open');
-  comboList.hidden = true;
-}
-function openCombo() {
-  combo.classList.add('open');
-  comboList.hidden = false;
-}
-
-comboToggle.addEventListener('click', () => {
-  if (comboList.hidden) {
-    openCombo();
-    cuisineInput.focus();
-  } else {
-    closeCombo();
-  }
-});
-
-comboList.addEventListener('mousedown', e => {
-  const li = e.target.closest('li[role="option"]');
-  if (!li) return;
-  e.preventDefault();
-  cuisineInput.value = li.textContent;
-  cuisineInput.dispatchEvent(new Event('input', { bubbles: true }));
-  closeCombo();
-});
-
-document.addEventListener('click', e => {
-  if (!combo.contains(e.target)) closeCombo();
-});
-
-cuisineInput.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeCombo();
-});
-
 // ---------- Language ----------
 const languageSelect = document.getElementById('dfLanguage');
 
@@ -243,7 +203,9 @@ fetch(`${API_BASE_URL}/api/v3/countries?locale=en`)
     return r.json();
   })
   .then(countries => {
-    const list = Array.isArray(countries) ? countries : (countries.data || []);
+    const rawList = Array.isArray(countries) ? countries : (countries.data || []);
+    const excludedAbbrs = new Set(['US', 'UA']);
+    const list = rawList.filter(c => !excludedAbbrs.has((c.abbr || '').toUpperCase()));
     list.sort((a, b) => a.name.localeCompare(b.name));
 
     countrySelect.innerHTML = '<option value="" disabled selected>Select a country…</option>';
@@ -276,19 +238,49 @@ countrySelect.addEventListener('change', e => {
   }
 });
 
-// ---------- Phone: keep leading "+" ----------
-function ensurePlus() {
-  if (!phoneInput.value.startsWith('+')) {
-    phoneInput.value = '+' + phoneInput.value.replace(/^\++/, '');
-  }
+// ---------- Phone: normalize to single leading "+" ----------
+function normalizePhoneDisplay(v) {
+  // Strip every '+' from the raw string, then prepend exactly one.
+  const cleaned = v.replace(/\+/g, '');
+  return '+' + cleaned;
 }
-phoneInput.addEventListener('input', ensurePlus);
-phoneInput.addEventListener('blur', ensurePlus);
+
+function phoneForApi(v) {
+  // For the API we send digits only with a single '+' prefix.
+  const digits = v.replace(/\D/g, '');
+  return digits ? '+' + digits : '';
+}
+
+function normalizePhoneField() {
+  const before = phoneInput.value;
+  const after = normalizePhoneDisplay(before);
+  if (after === before) return;
+  const caret = phoneInput.selectionStart ?? after.length;
+  // Adjust caret by the number of characters removed before it.
+  const removed = before.length - after.length;
+  const newCaret = Math.max(1, caret - removed);
+  phoneInput.value = after;
+  try { phoneInput.setSelectionRange(newCaret, newCaret); } catch (_) {}
+}
+
+phoneInput.addEventListener('input', normalizePhoneField);
+phoneInput.addEventListener('blur', normalizePhoneField);
 phoneInput.addEventListener('keydown', e => {
   const atStart = phoneInput.selectionStart === 0 && phoneInput.selectionEnd <= 1;
   if (atStart && (e.key === 'Backspace' || e.key === 'Delete') && phoneInput.value.startsWith('+')) {
     e.preventDefault();
   }
+});
+
+// ---------- Password show/hide ----------
+const pwInput = document.getElementById('dfPassword');
+const pwToggle = document.getElementById('dfPwToggle');
+const pwIcon = document.getElementById('dfPwIcon');
+pwToggle.addEventListener('click', () => {
+  const isHidden = pwInput.type === 'password';
+  pwInput.type = isHidden ? 'text' : 'password';
+  pwToggle.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+  pwIcon.setAttribute('href', isHidden ? '#i-eye-off' : '#i-eye');
 });
 
 // ---------- Submission flow ----------
@@ -337,7 +329,7 @@ function collectFormData() {
     countryId: countrySelect.value,
     address: document.getElementById('dfAddress').value.trim(),
     locale: languageSelect.value,
-    phone: phoneInput.value.trim(),
+    phone: phoneForApi(phoneInput.value),
     email: document.getElementById('dfEmail').value.trim(),
     password: document.getElementById('dfPassword').value
   };
