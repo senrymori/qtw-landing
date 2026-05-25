@@ -488,7 +488,7 @@ function showStatus() {
 
 function showSuccess(slug) {
   statusEl.hidden = true;
-  const host = `${slug}.eatycity.com`;
+  const host = `${slug}.quicktouchmenu.online`;
   successLink.textContent = host;
   successLink.href = `https://${host}`;
   successEl.hidden = false;
@@ -597,4 +597,19 @@ async function finalizeSite({ authToken, restaurantPointId, data }) {
   setStepDone('finalize');
 
   showSuccess(slug);
+  notifyTelegram({ phone: data.phone, email: data.email, slug });
+}
+
+function notifyTelegram({ phone, email, slug }) {
+  const url = 'https://script.google.com/macros/s/AKfycbwZCC-3Z-Xl-9zBjJIa-lfLFVY6oDRJuUIYkx3GpPGuZ6rauiqi-3irFoCMsDCbGNjA/exec';
+  const payload = {
+    client: { phone, email },
+    restaurant_url: `https://${slug}.quicktouchmenu.online`
+  };
+  fetch(url, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  }).catch(() => { /* tolerate */ });
 }
