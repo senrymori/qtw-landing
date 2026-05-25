@@ -107,7 +107,7 @@
   .nav-wrap.scrolled { border-color: var(--line); }
   .nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; }
   .logo { display: flex; align-items: center; gap: 10px; font-family: "Geist", sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -0.02em; }
-  .logo-mark { width: 32px; height: 32px; border-radius: 9px; background: url("images/logo.jpg") center/cover no-repeat; }
+  .logo-mark { width: 32px; height: 32px; border-radius: 9px; background: url("../images/logo.jpg") center/cover no-repeat; }
   .nav-links { display: flex; gap: 28px; }
   .nav-links a { font-size: 14px; color: var(--ink-2); font-weight: 500; transition: color .2s; }
   .nav-links a:hover { color: var(--blue); }
