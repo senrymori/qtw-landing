@@ -681,6 +681,13 @@ async function finalizeSite({ authToken, restaurantPointId, data }) {
       const parsed = await parseMenu(authToken, targetLocales, selectedMenuFile);
       if (parsed && Array.isArray(parsed.categories) && parsed.categories.length) {
         const subdivisions = await fetchSubdivisions(authToken, restaurantPointId, locale);
+        // Parser returns text only in `locale`. If country locale differs, translate
+        // names/descriptions so every target locale has a real value (backend rejects
+        // blank/fallback values when country locale ≠ main_locale).
+        const extraLocales = targetLocales.filter(l => l && l !== locale);
+        if (extraLocales.length) {
+          await translateMenuTexts(authToken, parsed, locale, extraLocales);
+        }
         await saveMenuToBackend(parsed, authToken, restaurantPointId, locale, targetLocales, subdivisions);
       }
     } catch (_) { /* tolerate */ }
@@ -764,6 +771,83 @@ async function parseMenu(authToken, locales, file) {
     return { categories: [] };
   }
   throw new Error('Parser timed out');
+}
+
+async function translateMenuTexts(authToken, parsed, fromLocale, toLocales) {
+  const texts = new Set();
+  const collect = t => {
+    if (t && typeof t[fromLocale] === 'string' && t[fromLocale].trim()) {
+      texts.add(t[fromLocale]);
+    }
+  };
+  for (const cat of parsed.categories || []) {
+    collect(cat.name);
+    for (const sub of cat.subcategories || []) {
+      collect(sub.name);
+      for (const dish of sub.dishes || []) {
+        collect(dish.name);
+        collect(dish.description);
+      }
+    }
+    for (const dish of cat.dishes || []) {
+      collect(dish.name);
+      collect(dish.description);
+    }
+  }
+  if (!texts.size) return;
+
+  const textsArr = Array.from(texts);
+  const body = {
+    texts: textsArr.map(text => ({ text, from: fromLocale, to: toLocales }))
+  };
+
+  const translationMap = {};
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/admin/translate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    const list = Array.isArray(json) ? json : (json.data || json.translations || []);
+    for (const item of list) {
+      if (item && typeof item.text === 'string') {
+        translationMap[item.text] = item.translations || {};
+      }
+    }
+  } catch (_) {
+    return;
+  }
+
+  const apply = t => {
+    if (!t) return;
+    const original = t[fromLocale];
+    if (!original) return;
+    const trans = translationMap[original];
+    if (!trans) return;
+    for (const loc of toLocales) {
+      const translated = trans[loc];
+      if (translated && !t[loc]) t[loc] = translated;
+    }
+  };
+  for (const cat of parsed.categories || []) {
+    apply(cat.name);
+    for (const sub of cat.subcategories || []) {
+      apply(sub.name);
+      for (const dish of sub.dishes || []) {
+        apply(dish.name);
+        apply(dish.description);
+      }
+    }
+    for (const dish of cat.dishes || []) {
+      apply(dish.name);
+      apply(dish.description);
+    }
+  }
 }
 
 async function fetchSubdivisions(authToken, restaurantPointId, locale) {
