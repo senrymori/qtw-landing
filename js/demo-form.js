@@ -846,6 +846,21 @@ async function apiCreateDish(authToken, restaurantPointId, locale, body) {
   return res.json();
 }
 
+async function apiPutDishOnShowcase(authToken, restaurantPointId, productId) {
+  await fetch(`${API_BASE_URL}/api/v1/admin/products/${productId}/on_showcase?restaurant_point_id=${restaurantPointId}`, {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${authToken}` }
+  }).catch(() => { /* tolerate */ });
+}
+
+async function createDishAndShowcase(authToken, restaurantPointId, locale, body) {
+  const dish = await apiCreateDish(authToken, restaurantPointId, locale, body);
+  if (dish && dish.id != null) {
+    await apiPutDishOnShowcase(authToken, restaurantPointId, dish.id);
+  }
+  return dish;
+}
+
 function buildDishBody(categoryId, dish, targetLocales, mainLocale) {
   return {
     name: formatTextForServer(dish.name, targetLocales, mainLocale),
@@ -904,14 +919,14 @@ async function saveMenuToBackend(parsed, authToken, restaurantPointId, mainLocal
           subTasks.push(apiAddSubdivisionToCategory(authToken, subResp.id, divisionId));
         }
         subTasks.push(...(sub.dishes || []).map(dish =>
-          apiCreateDish(authToken, restaurantPointId, mainLocale, buildDishBody(subResp.id, dish, targetLocales, mainLocale))
+          createDishAndShowcase(authToken, restaurantPointId, mainLocale, buildDishBody(subResp.id, dish, targetLocales, mainLocale))
             .catch(() => { /* tolerate */ })
         ));
         await Promise.all(subTasks);
       }));
     } else if (category.dishes && category.dishes.length) {
       tasks.push(...category.dishes.map(dish =>
-        apiCreateDish(authToken, restaurantPointId, mainLocale, buildDishBody(parentCategory.id, dish, targetLocales, mainLocale))
+        createDishAndShowcase(authToken, restaurantPointId, mainLocale, buildDishBody(parentCategory.id, dish, targetLocales, mainLocale))
           .catch(() => { /* tolerate */ })
       ));
     }
