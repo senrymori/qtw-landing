@@ -565,8 +565,9 @@ async function finalizeSite({ authToken, restaurantPointId, data }) {
 
   // 3. Update theme
   setStepActive('theme');
+  const themeUrl = `${API_BASE_URL}/api/v1/admin/theme?restaurant_point_id=${restaurantPointId}&locale=${encodeURIComponent(locale)}`;
   try {
-    await fetch(`${API_BASE_URL}/api/v1/admin/theme?restaurant_point_id=${restaurantPointId}&locale=${encodeURIComponent(locale)}`, {
+    await fetch(themeUrl, {
       method: 'PUT',
       headers,
       body: JSON.stringify({
@@ -577,6 +578,12 @@ async function finalizeSite({ authToken, restaurantPointId, data }) {
         text_button_color: currentColors.btnText
       })
     });
+  } catch (_) { /* tolerate */ }
+
+  // 3b. Upload theme images (logo, then desktop_screen_image) as multipart/form-data
+  try {
+    await uploadThemeImage(themeUrl, authToken, 'logo', 'images/demo/demo-logo.png');
+    await uploadThemeImage(themeUrl, authToken, 'desktop_screen_image', 'images/demo/demo-preview.png');
   } catch (_) { /* tolerate */ }
   setStepDone('theme');
 
@@ -598,6 +605,20 @@ async function finalizeSite({ authToken, restaurantPointId, data }) {
 
   showSuccess(slug);
   notifyTelegram({ phone: data.phone, email: data.email, slug });
+}
+
+async function uploadThemeImage(themeUrl, authToken, fieldName, assetPath) {
+  const assetRes = await fetch(assetPath);
+  if (!assetRes.ok) throw new Error(`Failed to load asset ${assetPath}`);
+  const blob = await assetRes.blob();
+  const filename = assetPath.split('/').pop();
+  const fd = new FormData();
+  fd.append(fieldName, blob, filename);
+  await fetch(themeUrl, {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${authToken}` },
+    body: fd
+  });
 }
 
 function notifyTelegram({ phone, email, slug }) {
