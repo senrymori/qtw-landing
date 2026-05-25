@@ -61,14 +61,8 @@
     }
 
     .df-layout {
-      display: grid;
-      grid-template-columns: 1.15fr 1fr;
-      gap: 32px;
-      align-items: start;
-    }
-
-    @media (max-width: 960px) {
-      .df-layout { grid-template-columns: 1fr; }
+      max-width: 720px;
+      margin: 0 auto;
     }
 
     /* ---------- FORM CARD ---------- */
@@ -420,8 +414,7 @@
 
     /* ---------- PREVIEW ---------- */
     .df-preview-wrap {
-      position: sticky;
-      top: 24px;
+      margin-top: 24px;
     }
 
     .df-preview-label {
@@ -1099,6 +1092,50 @@
             <div class="df-palettes" id="dfPalettes">
               <!-- palettes inserted via JS -->
             </div>
+
+            <!-- ============ LIVE PREVIEW ============ -->
+            <div class="df-preview-wrap">
+              <div class="df-preview-label">
+                <span class="pulse"></span>
+                Live preview
+              </div>
+              <div class="df-preview" id="dfPreview">
+                <div class="df-preview-bar">
+                  <span></span><span></span><span></span>
+                  <span class="url" id="dfPreviewUrl">your-restaurant.eatycity.com</span>
+                </div>
+                <div class="df-preview-body">
+                  <div class="df-preview-restaurant" id="dfPreviewName">Your restaurant</div>
+                  <div class="df-preview-cuisine" id="dfPreviewCuisine">— select a cuisine</div>
+
+                  <div class="df-preview-cats">
+                    <div class="df-preview-cat">
+                      <svg class="ico"><use href="#i-pizza"></use></svg>
+                      <div class="lbl">Mains</div>
+                    </div>
+                    <div class="df-preview-cat">
+                      <svg class="ico"><use href="#i-burger"></use></svg>
+                      <div class="lbl">Sides</div>
+                    </div>
+                    <div class="df-preview-cat">
+                      <svg class="ico"><use href="#i-wine"></use></svg>
+                      <div class="lbl">Drinks</div>
+                    </div>
+                  </div>
+
+                  <div class="df-preview-dish">
+                    <div class="img"></div>
+                    <div class="info">
+                      <div class="name">Signature dish</div>
+                      <div class="desc">Chef's special with seasonal ingredients.</div>
+                    </div>
+                    <div class="price">€14</div>
+                  </div>
+
+                  <div class="df-preview-btn">Order now</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Step 3: Account -->
@@ -1126,56 +1163,12 @@
 
           <div class="df-submit-row">
             <button type="submit" class="btn btn-primary btn-lg" id="dfSubmitBtn">
-              Generate my preview
+              Create
               <svg class="arrow" width="16" height="16"><use href="#i-arrow"></use></svg>
             </button>
             <span class="hint">Free · No card required</span>
           </div>
         </form>
-
-        <!-- ============ LIVE PREVIEW ============ -->
-        <aside class="df-preview-wrap">
-          <div class="df-preview-label">
-            <span class="pulse"></span>
-            Live preview
-          </div>
-          <div class="df-preview" id="dfPreview">
-            <div class="df-preview-bar">
-              <span></span><span></span><span></span>
-              <span class="url" id="dfPreviewUrl">your-restaurant.eatycity.com</span>
-            </div>
-            <div class="df-preview-body">
-              <div class="df-preview-restaurant" id="dfPreviewName">Your restaurant</div>
-              <div class="df-preview-cuisine" id="dfPreviewCuisine">— select a cuisine</div>
-
-              <div class="df-preview-cats">
-                <div class="df-preview-cat">
-                  <svg class="ico"><use href="#i-pizza"></use></svg>
-                  <div class="lbl">Mains</div>
-                </div>
-                <div class="df-preview-cat">
-                  <svg class="ico"><use href="#i-burger"></use></svg>
-                  <div class="lbl">Sides</div>
-                </div>
-                <div class="df-preview-cat">
-                  <svg class="ico"><use href="#i-wine"></use></svg>
-                  <div class="lbl">Drinks</div>
-                </div>
-              </div>
-
-              <div class="df-preview-dish">
-                <div class="img"></div>
-                <div class="info">
-                  <div class="name">Signature dish</div>
-                  <div class="desc">Chef's special with seasonal ingredients.</div>
-                </div>
-                <div class="price">€14</div>
-              </div>
-
-              <div class="df-preview-btn">Order now</div>
-            </div>
-          </div>
-        </aside>
 
       </div>
 

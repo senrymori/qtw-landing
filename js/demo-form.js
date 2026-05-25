@@ -481,8 +481,8 @@ codeForm.addEventListener('submit', async e => {
 });
 
 function showStatus() {
-  layoutEl.hidden = true;
-  document.querySelector('.df-head').hidden = true;
+  layoutEl.remove();
+  document.querySelector('.df-head').remove();
   statusEl.hidden = false;
 }
 
