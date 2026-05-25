@@ -283,9 +283,14 @@ countrySelect.addEventListener('change', e => {
 
   // Restrict language options to those supported by the country
   if (country && Array.isArray(country.locales)) {
+    const prevLocale = languageSelect.value;
     populateLanguages(country.locales);
-    if (country.main_locale && country.locales.includes(country.main_locale)) {
-      languageSelect.value = country.main_locale;
+    // Only fall back to the country's main_locale if the user hadn't
+    // already picked a language that the new country still supports.
+    if (!prevLocale || !country.locales.includes(prevLocale)) {
+      if (country.main_locale && country.locales.includes(country.main_locale)) {
+        languageSelect.value = country.main_locale;
+      }
     }
   }
 
