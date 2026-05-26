@@ -200,21 +200,14 @@ let selectedCountryLocale = null;
 
 function countryLocaleFor(country) {
   if (!country) return null;
-  const candidates = [
-    country.locale,
-    country.default_locale,
-    country.main_locale,
-    country.language,
-    country.language_code,
-    country.lang
-  ];
-  for (const c of candidates) {
-    if (!c) continue;
-    const v = String(c).toLowerCase();
-    if (ALL_LOCALES.includes(v)) return v;
+  const main = country.main_locale ? String(country.main_locale).toLowerCase() : '';
+  if (main && ALL_LOCALES.includes(main)) return main;
+  if (Array.isArray(country.locales)) {
+    for (const loc of country.locales) {
+      const v = String(loc || '').toLowerCase();
+      if (ALL_LOCALES.includes(v)) return v;
+    }
   }
-  const abbrLower = String(country.abbr || '').toLowerCase();
-  if (ALL_LOCALES.includes(abbrLower)) return abbrLower;
   return null;
 }
 
