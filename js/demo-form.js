@@ -939,9 +939,9 @@ async function apiPutDishOnShowcase(authToken, restaurantPointId, productId) {
 
 async function createDishAndShowcase(authToken, restaurantPointId, locale, body) {
   const dish = await apiCreateDish(authToken, restaurantPointId, locale, body);
-  if (dish && dish.id != null) {
-    await apiPutDishOnShowcase(authToken, restaurantPointId, dish.id);
-  }
+  // if (dish && dish.id != null) {
+  //   await apiPutDishOnShowcase(authToken, restaurantPointId, dish.id);
+  // }
   return dish;
 }
 
