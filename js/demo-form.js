@@ -196,19 +196,24 @@ populateLanguages();
 const countrySelect = document.getElementById('dfCountry');
 const phoneInput = document.getElementById('dfPhone');
 const countriesById = new Map();
-let selectedCountryLocale = null;
+let selectedCountryLocales = [];
 
-function countryLocaleFor(country) {
-  if (!country) return null;
-  const main = country.main_locale ? String(country.main_locale).toLowerCase() : '';
-  if (main && ALL_LOCALES.includes(main)) return main;
-  if (Array.isArray(country.locales)) {
-    for (const loc of country.locales) {
-      const v = String(loc || '').toLowerCase();
-      if (ALL_LOCALES.includes(v)) return v;
+function countryLocalesFor(country) {
+  if (!country) return [];
+  const result = [];
+  const seen = new Set();
+  const push = v => {
+    const lc = String(v || '').toLowerCase();
+    if (lc && ALL_LOCALES.includes(lc) && !seen.has(lc)) {
+      seen.add(lc);
+      result.push(lc);
     }
+  };
+  if (country.main_locale) push(country.main_locale);
+  if (Array.isArray(country.locales)) {
+    for (const loc of country.locales) push(loc);
   }
-  return null;
+  return result;
 }
 
 fetch(`${API_BASE_URL}/api/v3/countries?locale=en`)
@@ -251,9 +256,9 @@ countrySelect.addEventListener('change', e => {
     phoneInput.placeholder = code + ' ';
   }
 
-  // Track country's primary locale for multi-locale payloads
+  // Track all of the country's locales for multi-locale payloads
   const country = countriesById.get(String(e.target.value));
-  selectedCountryLocale = countryLocaleFor(country);
+  selectedCountryLocales = countryLocalesFor(country);
 });
 
 // ---------- Phone: normalize to single leading "+" ----------
@@ -426,7 +431,7 @@ function collectFormData() {
     name: nameInput.value.trim(),
     cuisine: cuisineInput.value.trim(),
     countryId: countrySelect.value,
-    countryLocale: selectedCountryLocale,
+    countryLocales: selectedCountryLocales,
     address: document.getElementById('dfAddress').value.trim(),
     locale: languageSelect.value,
     phone: phoneForApi(phoneInput.value),
@@ -438,7 +443,9 @@ function collectFormData() {
 function buildTargetLocales(data) {
   const set = new Set();
   if (data.locale) set.add(data.locale);
-  if (data.countryLocale) set.add(data.countryLocale);
+  for (const loc of (data.countryLocales || [])) {
+    if (loc) set.add(loc);
+  }
   return Array.from(set);
 }
 
